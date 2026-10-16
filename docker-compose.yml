@@ -1,0 +1,29 @@
+# Untuk deployment di mesin lain (bukan untuk dijalankan di sini).
+# Database TIDAK didefinisikan di sini: pakai container yang sudah jalan,
+# telegram-whitelist-db (postgres:16) di host 127.0.0.1:5433.
+# Backend mencapainya lewat host.docker.internal:5433.
+
+services:
+  backend:
+    build: ./backend
+    container_name: webchat-backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      # Menimpa DATABASE_URL di .env: dari dalam container, 127.0.0.1 adalah
+      # container itu sendiri, jadi arahkan ke host lalu port 5433.
+      DATABASE_URL: postgresql+psycopg2://Faizal:Faizal291093@host.docker.internal:5433/telegram_access
+    extra_hosts:
+      # Kompatibilitas Linux; di Docker Desktop Windows/Mac host.docker.internal sudah bawaan.
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    container_name: webchat-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"

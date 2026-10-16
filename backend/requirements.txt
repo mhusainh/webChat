@@ -1,0 +1,9 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+PyJWT>=2.8
+pydantic-settings>=2.4
+
+# untuk test
+pytest>=8.0
