@@ -17,7 +17,7 @@ services:
       # Kompatibilitas Linux; di Docker Desktop Windows/Mac host.docker.internal sudah bawaan.
       - "host.docker.internal:host-gateway"
     ports:
-      - "8000:8000"
+      - "8000:456"
 
   frontend:
     build: ./frontend
@@ -26,4 +26,4 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"
+      - "80:123"
