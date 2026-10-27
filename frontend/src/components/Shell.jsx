@@ -51,6 +51,10 @@ export default function Shell({ sheet, children }) {
             <span className="n">02</span>
             <span className="t">Trigger</span>
           </NavLink>
+          <NavLink to="/karyawan-khusus" className={({ isActive }) => "tab" + (isActive ? " on" : "")}>
+            <span className="n">03</span>
+            <span className="t">Karyawan Khusus</span>
+          </NavLink>
           <div className="railmeta">
             <span className="k">Catatan lembar</span>
             <div className="row">

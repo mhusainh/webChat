@@ -452,6 +452,21 @@ h1 {
   justify-content: flex-end;
 }
 
+.trow input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--hair);
+  background: var(--vellum-soft);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 17px;
+}
+
+.trow input:focus {
+  border-color: var(--ink);
+}
+
 /* Status dibawa bentuk garis, bukan warna */
 .st {
   display: inline-flex;

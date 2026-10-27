@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import Base, SessionLocal, engine
 from app.models import User
-from app.routers import auth, trigger, users
+from app.routers import auth, karyawan_khusus, trigger, users
 from app.security import hash_password
 
 # User awal yang dibuat otomatis saat database kosong: (username, password)
@@ -36,6 +36,7 @@ app = FastAPI(title='User Manager', version='1.1.0', lifespan=lifespan)
 
 app.include_router(auth.router, prefix='/api')
 app.include_router(users.router, prefix='/api')
+app.include_router(karyawan_khusus.router, prefix='/api')
 app.include_router(trigger.router, prefix='/api')
 
 

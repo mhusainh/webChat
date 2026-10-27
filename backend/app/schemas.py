@@ -45,3 +45,16 @@ class TriggerResponse(BaseModel):
     status: str
     n8n_status: int | None = None
     detail: str | None = None
+
+
+class KaryawanKhususCreate(BaseModel):
+    nama: str = Field(min_length=1, max_length=100)
+
+class KaryawanKhususUpdate(BaseModel):
+    nama: str = Field(min_length=1, max_length=100)
+
+class KaryawanKhususOut(BaseModel):
+    id: int
+    nama: str
+    created_at: datetime
+    model_config = {'from_attributes': True}

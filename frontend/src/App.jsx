@@ -4,6 +4,13 @@ import Shell from "./components/Shell";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Trigger from "./pages/Trigger";
+import KaryawanKhususPage from "./pages/KaryawanKhusus";
+
+function LoginRoute() {
+  const { user } = useAuth();
+  if (user) return <Navigate to="/" replace />;
+  return <Login />;
+}
 
 function RequireAuth({ sheet, children }) {
   const { user } = useAuth();
@@ -14,11 +21,11 @@ function RequireAuth({ sheet, children }) {
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<LoginRoute />} />
       <Route
         path="/"
         element={
-          <RequireAuth sheet="01/03 · DASBOR">
+          <RequireAuth sheet="01/03 DASBOR">
             <Dashboard />
           </RequireAuth>
         }
@@ -26,8 +33,16 @@ export default function App() {
       <Route
         path="/trigger"
         element={
-          <RequireAuth sheet="02/03 · TRIGGER">
+          <RequireAuth sheet="02/03 TRIGGER">
             <Trigger />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/karyawan-khusus"
+        element={
+          <RequireAuth sheet="03/03 KARYAWAN KHUSUS">
+            <KaryawanKhususPage />
           </RequireAuth>
         }
       />

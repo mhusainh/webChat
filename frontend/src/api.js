@@ -78,6 +78,12 @@ export async function api(path, options = {}) {
     const ok = await refreshAccess();
     if (ok) res = await kirim(path, options, store.access);
   }
+  if (res.status === 401) {
+    store.clear();
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
+  }
   if (res.status === 204) return null;
   let data = null;
   try {
