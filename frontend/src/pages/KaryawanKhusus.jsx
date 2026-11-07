@@ -114,7 +114,7 @@ export default function KaryawanKhususPage() {
         <span className="ch br" aria-hidden="true" />
         <div className="head">
           <div>
-            <span className="sec-label">Seksi 03 · Lembar 03/03</span>
+            <span className="sec-label">Seksi 03 · Lembar 03/04</span>
             <h1>Karyawan Khusus</h1>
           </div>
         </div>
@@ -337,7 +337,7 @@ export default function KaryawanKhususPage() {
             langsung.
           </p>
           <p style={{ marginBottom: 12 }}>
-            <b>Nama harus sama persis dengan yang tersimpan di Excel</b> — huruf besar/kecil, spasi, dan ejaan wajib
+            <b>Nama harus sama persis dengan yang tersimpan di Excel</b>: huruf besar/kecil, spasi, dan ejaan wajib
             cocok, supaya data karyawan ini terbaca oleh workflow gaji.
           </p>
           <p className="jenis-code">

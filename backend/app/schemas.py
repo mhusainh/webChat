@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -57,4 +58,21 @@ class KaryawanKhususOut(BaseModel):
     id: int
     nama: str
     created_at: datetime
+    model_config = {'from_attributes': True}
+
+
+class ResponseIn(BaseModel):
+    """Payload yang dikirim n8n per langkah kerja."""
+
+    jenis: Literal['/jadwal', '/rab', '/absensi']
+    status: Literal['success', 'failed']
+    response: Any = None
+
+
+class ResponseOut(BaseModel):
+    id: int
+    jenis: str
+    status: str
+    response: Any
+    created_at: datetime | None = None
     model_config = {'from_attributes': True}

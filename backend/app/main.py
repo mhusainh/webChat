@@ -1,13 +1,14 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
 from app.config import settings
 from app.database import Base, SessionLocal, engine
 from app.models import User
-from app.routers import auth, karyawan_khusus, trigger, users
-from app.security import hash_password
+from app.routers import auth, karyawan_khusus, responses, trigger, users
+from app.security import decode_access_token, hash_password
+from app.ws import manager
 
 # User awal yang dibuat otomatis saat database kosong: (username, password)
 SEED_USERS = [
@@ -38,6 +39,23 @@ app.include_router(auth.router, prefix='/api')
 app.include_router(users.router, prefix='/api')
 app.include_router(karyawan_khusus.router, prefix='/api')
 app.include_router(trigger.router, prefix='/api')
+app.include_router(responses.router, prefix='/api')
+
+
+@app.websocket('/ws')
+async def ws_status(websocket: WebSocket, token: str = Query(default='')):
+    """Gateway realtime: baris baru dari POST /api/responses disiarkan ke klien ini."""
+    if not decode_access_token(token):
+        await websocket.close(code=4401)
+        return
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        manager.disconnect(websocket)
 
 
 @app.get('/health')

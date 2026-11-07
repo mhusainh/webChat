@@ -9,6 +9,7 @@
   --hair: #c9bfa8;
   --red: #c63b22;
   --red-dark: #a92e18;
+  --ok: #2f6b41;
   --faint: #6b6552;
   --band-cell: #3a352b;
   --on-band: #f2ead9;
@@ -575,6 +576,11 @@ h1 {
   line-height: 1.55;
 }
 
+.field input.path {
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 15px;
+}
+
 /* ===== Pesan ===== */
 .msg {
   margin-top: 12px;
@@ -606,6 +612,105 @@ h1 {
 
 .msg-err .tag {
   color: var(--red);
+}
+
+/* ===== Status lanjutan: log realtime n8n ===== */
+/* Kotak gaya textarea: tinggi default cukup 3 baris status
+   (3×70 + padding 16 + border 2 = 228px) — scroll di dalam,
+   tanpa max-height supaya drag resize bebas memanjang. */
+.logbox {
+  margin-top: 10px;
+  height: 228px;
+  min-height: 170px;
+  overflow-y: auto;
+  resize: vertical;
+  border: 1px solid var(--hair);
+  background: var(--vellum-soft);
+  padding: 8px 10px;
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Versi halaman (Log Absensi): height auto + overflow visible —
+   daftar mengalir dengan halaman, scroll halaman penuh. */
+.logbox.no-resize {
+  resize: none;
+  overflow: visible;
+  height: auto;
+  min-height: 260px;
+}
+
+.log-info {
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 2px;
+}
+
+/* Strip kiri = penanda state (hijau success / merah failed), bukan hiasan. */
+.log-row {
+  border-bottom: 1px solid var(--hair);
+  border-left: 3px solid transparent;
+  padding: 6px 8px;
+}
+
+.log-row:last-child {
+  border-bottom: 0;
+}
+
+.log-row.ok {
+  border-left-color: var(--ok);
+}
+
+.log-row.err {
+  border-left-color: var(--red);
+}
+
+.log-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.log-time {
+  color: var(--faint);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.log-st {
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.log-row.ok .log-st {
+  color: var(--ok);
+}
+
+.log-row.err .log-st {
+  color: #8f2913;
+}
+
+.log-body {
+  margin-top: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+  font: inherit;
+}
+
+.log-retry {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  cursor: pointer;
+  letter-spacing: 0.08em;
 }
 
 .empty {
