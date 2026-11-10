@@ -51,7 +51,7 @@ async function kirim(path, options = {}, token) {
   return fetch(BASE + path, { ...options, headers });
 }
 
-async function refreshAccess() {
+export async function refreshAccess() {
   const rt = store.refresh;
   if (!rt) return false;
   try {

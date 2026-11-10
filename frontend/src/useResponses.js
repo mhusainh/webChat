@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, tokenStore } from "./api";
+import { api, refreshAccess, tokenStore } from "./api";
 
 const JUMLAH_MUAT = 500;
 
@@ -59,6 +59,7 @@ export default function useResponses(jenis) {
     let percobaan = 0;
 
     const jadwalUlang = () => {
+      if (mati) return;
       percobaan += 1;
       const tunggu = Math.min(1000 * percobaan, 8000);
       timer = setTimeout(sambung, tunggu);
@@ -103,9 +104,12 @@ export default function useResponses(jenis) {
       ws.onerror = () => {
         if (ws && ws.readyState === WebSocket.OPEN) ws.close();
       };
-      ws.onclose = () => {
+      ws.onclose = async (ev) => {
         if (mati) return;
         setKoneksi("down");
+        //4401 = token kedaluwarsa saat handshake. Refresh dulu, lalu
+        // sambung ulang — tanpa ini reconnect memakai token basi selamanya.
+        if (ev.code === 4401) await refreshAccess();
         jadwalUlang();
       };
     };
