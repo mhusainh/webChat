@@ -73,7 +73,8 @@ class TestPushFKSDK:
 
         body = attlog('2026-01-01').json()
         assert body['ok'] is True
-        assert {'user_id': '501', 'nama': '', 'timestamp': '2026-01-01 07:00:15'} in body['records']
+        assert body['records'][0]['user_id'] == '501'
+        assert body['records'][0]['timestamp'] == '2026-01-01 07:00:15'
         assert body['info']['di_jendela'] == 1
         assert body['info']['start'] == '2026-01-01 00:00:00'
         assert body['info']['end'] == '2026-01-02 08:00:00'

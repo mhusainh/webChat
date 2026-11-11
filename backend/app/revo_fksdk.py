@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 from app.database import SessionLocal
-from app.models import RevoAttend
+from app.models import RevoAttend, RevoUser
 
 WAKTU = '%Y-%m-%d %H:%M:%S'
 
@@ -25,9 +25,10 @@ class RevoError(Exception):
 
 
 def reset_memory() -> None:
-    """Bersihkan data tabel revo_attend (berguna saat test)."""
+    """Bersihkan data tabel revo_attend dan revo_users (berguna saat test)."""
     with SessionLocal() as db:
         db.execute(delete(RevoAttend))
+        db.execute(delete(RevoUser))
         db.commit()
 
 
@@ -99,6 +100,15 @@ def _balasan(trans_id: str) -> tuple[dict, bytes]:
 def simpan_pukulan(uid: str, ts: str) -> bool:
     """Simpan ke tabel revo_attend. Kembalikan True jika baru, False jika duplikat."""
     with SessionLocal() as db:
+        # Pastikan user ada di revo_users agar relasi FK CASCADE tidak menolak
+        user_exists = db.scalar(select(RevoUser.id).where(RevoUser.user_id == uid))
+        if user_exists is None:
+            try:
+                db.add(RevoUser(user_id=uid, name='Belum Diberi Nama', role=''))
+                db.commit()
+            except IntegrityError:
+                db.rollback()
+
         exists = db.scalar(
             select(RevoAttend.id).where(
                 RevoAttend.user_id == uid,
@@ -117,7 +127,13 @@ def simpan_pukulan(uid: str, ts: str) -> bool:
 
 
 def set_user_nama(uid: str, nama: str) -> None:
-    pass
+    with SessionLocal() as db:
+        row = db.scalar(select(RevoUser).where(RevoUser.user_id == uid))
+        if row is None:
+            db.add(RevoUser(user_id=uid, name=nama, role='Karyawan'))
+        else:
+            row.name = nama
+        db.commit()
 
 
 def process_push(request_code: str, dev_id: str, trans_id: str, body: bytes) -> tuple[dict, bytes]:
@@ -133,6 +149,12 @@ def process_push(request_code: str, dev_id: str, trans_id: str, body: bytes) -> 
         return _balasan(str(trans_id or '0'))
 
     elif request_code == 'realtime_enroll_data':
+        parsed = parse_fk_payload(body)
+        uid = str(parsed.get('user_id', '')).strip()
+        nama = str(parsed.get('user_name', '')).strip()
+        if uid and nama:
+            set_user_nama(uid, nama)
+            print(f"[ENROLL DITERIMA] user:{uid} name:{nama}", flush=True)
         return _balasan(str(trans_id or '0'))
 
     elif request_code == 'receive_cmd':
@@ -147,6 +169,7 @@ def ambil_attlog(target: date, jam_mulai: int, jam_akhir: int) -> dict:
     batas_bawah, batas_atas = mulai.strftime(WAKTU), akhir.strftime(WAKTU)
 
     with SessionLocal() as db:
+        users = {u.user_id: u.name for u in db.scalars(select(RevoUser)).all()}
         total = db.scalar(select(func.count()).select_from(RevoAttend)) or 0
         baris = db.scalars(
             select(RevoAttend)
@@ -155,7 +178,7 @@ def ambil_attlog(target: date, jam_mulai: int, jam_akhir: int) -> dict:
         ).all()
 
     records = [
-        {'user_id': r.user_id, 'nama': '', 'timestamp': r.timestamp}
+        {'user_id': r.user_id, 'nama': users.get(r.user_id, ''), 'timestamp': r.timestamp}
         for r in baris
     ]
 

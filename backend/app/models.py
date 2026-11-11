@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Integer, String, UniqueConstraint, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,6 +35,17 @@ class Responses(Base):
     status: Mapped[str] = mapped_column(String(50), nullable=False)
 
 
+class RevoUser(Base):
+    """Daftar karyawan mesin Revo (id, user_id, name, role)."""
+
+    __tablename__ = 'revo_users'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    role: Mapped[str] = mapped_column(String(50), nullable=False, default='')
+
+
 class RevoAttend(Base):
     """Data absensi mesin Fingerspot Revo dengan id auto-increment."""
 
@@ -44,5 +55,5 @@ class RevoAttend(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    user_id: Mapped[str] = mapped_column(String(50), ForeignKey('revo_users.user_id', ondelete='CASCADE'), nullable=False)
     timestamp: Mapped[str] = mapped_column(String(19), nullable=False)
