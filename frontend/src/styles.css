@@ -410,10 +410,14 @@ h1 {
   flex-wrap: wrap;
 }
 
-/* Lembar 05: Riwayat Kedatangan — kolom Peran + Waktu */
+/* Lembar 05: Riwayat Kedatangan — kolom Peran + Waktu + Aksi (hapus baris) */
 .tabel.kolom-riwayat .thead,
 .tabel.kolom-riwayat .trow {
-  grid-template-columns: 54px 120px 1fr 160px 200px;
+  grid-template-columns: 54px 120px 1fr 160px 200px 176px;
+}
+
+.tabel.kolom-riwayat .trow .ak {
+  flex-wrap: wrap;
 }
 
 .trow .waktu {
@@ -576,7 +580,8 @@ h1 {
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   width: 100%;
   min-height: 46px;
   padding: 11px 12px;
@@ -588,7 +593,8 @@ h1 {
 }
 
 .field input:focus,
-.field textarea:focus {
+.field textarea:focus,
+.field select:focus {
   border-color: var(--ink);
 }
 
@@ -603,6 +609,38 @@ h1 {
 .field input.path {
   font-family: "IBM Plex Mono", Consolas, monospace;
   font-size: 15px;
+}
+
+/* ===== Bilah filter (Lembar 05) ===== */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  align-items: flex-end;
+  margin-top: 22px;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--hair);
+}
+
+.filter-bar .field {
+  margin-bottom: 0;
+}
+
+.filter-bar .f-cari {
+  flex: 1 1 230px;
+}
+
+.filter-bar .f-pilih {
+  flex: 0 1 200px;
+}
+
+.filter-bar .f-tgl {
+  flex: 0 1 175px;
+}
+
+.filter-bar .btn {
+  margin-bottom: 1px;
 }
 
 /* ===== Pesan ===== */
@@ -998,6 +1036,10 @@ h1 {
 
   .aside {
     padding: 22px 18px 36px;
+  }
+
+  .filter-bar .field {
+    flex: 1 1 100%;
   }
 
   .seg {

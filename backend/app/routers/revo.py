@@ -3,15 +3,17 @@
 - POST /api/revo/push   : cermin dari listener 8014, untuk uji/curl tanpa perangkat.
 - GET  /api/revo/attlog : kontrak JSON yang dibaca getRevo.py (dipanggil n8n).
 - PUT  /api/revo/users  : perbaiki nama karyawan (lama, tanpa JWT).
-- CRUD /api/revo/users + GET /api/revo/riwayat : kelola revo_users & riwayat
-  gabungan revo_attend x revo_users (wajib JWT).
+- CRUD /api/revo/users + GET/DELETE /api/revo/riwayat : kelola revo_users &
+  riwayat gabungan revo_attend x revo_users (wajib JWT). GET riwayat mendukung
+  search nama, filter peran & rentang tanggal, plus urut nama/tanggal. DELETE
+  riwayat hanya menghapus baris kehadiran, tidak menyentuh pekerja.
 """
 
 from datetime import date as tanggal_hari
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -37,6 +39,16 @@ from app.schemas import (
 router = APIRouter(prefix='/revo', tags=['revo'])
 
 GAGAL = 400
+
+URUT_RIWAYAT = ('time_desc', 'time_asc', 'name_asc', 'name_desc')
+
+
+def _parse_tanggal(nilai: str) -> tanggal_hari:
+    """Tanggal filter wajib YYYY-MM-DD valid; salah = 400 (bukan 500)."""
+    try:
+        return parse_target_date(nilai)
+    except RevoError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)[:300]) from exc
 
 
 def _tolak_kunci(request: Request) -> JSONResponse | None:
@@ -147,34 +159,67 @@ def hapus_user(
 @router.get('/riwayat', response_model=list[RevoRiwayatOut])
 def riwayat(
     target_date: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    search: str | None = None,
+    role: str | None = None,
+    sort: str = 'time_desc',
     limit: int = 500,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Riwayat kehadiran terbaru: revo_attend LEFT JOIN revo_users per user_id."""
+    """Riwayat kehadiran: revo_attend LEFT JOIN revo_users per user_id.
+
+    Filter: search (sebagian nama, huruf besar-kecil bebas), role (cocok persis;
+    '' = tanpa peran), date_from/date_to (rentang tanggal, format YYYY-MM-DD).
+    Urut: time_desc (default), time_asc, name_asc, name_desc.
+    """
     batas = max(1, min(limit, 2000))
+    if sort not in URUT_RIWAYAT:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f'SORT_TIDAK_VALID {sort}')
+
     stmt = (
         select(
+            RevoAttend.id,
             RevoAttend.user_id,
             RevoUser.name.label('nama'),
             RevoUser.role,
             RevoAttend.timestamp,
         )
         .outerjoin(RevoUser, RevoUser.user_id == RevoAttend.user_id)
-        .order_by(RevoAttend.timestamp.desc())
-        .limit(batas)
     )
+    kata = (search or '').strip()
+    if kata:
+        stmt = stmt.where(RevoUser.name.ilike(f'%{kata}%'))
+    if role is not None:
+        stmt = stmt.where(RevoUser.role == role)
     if target_date:
-        try:
-            tgl = parse_target_date(target_date)
-        except RevoError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)[:300]) from exc
-        awal = f'{tgl.isoformat()} 00:00:00'
-        akhir = f'{tgl.isoformat()} 23:59:59'
-        stmt = stmt.where(RevoAttend.timestamp >= awal, RevoAttend.timestamp <= akhir)
-    rows = db.execute(stmt).all()
+        tgl = _parse_tanggal(target_date)
+        stmt = stmt.where(
+            RevoAttend.timestamp >= f'{tgl.isoformat()} 00:00:00',
+            RevoAttend.timestamp <= f'{tgl.isoformat()} 23:59:59',
+        )
+    if date_from:
+        tgl = _parse_tanggal(date_from)
+        stmt = stmt.where(RevoAttend.timestamp >= f'{tgl.isoformat()} 00:00:00')
+    if date_to:
+        tgl = _parse_tanggal(date_to)
+        stmt = stmt.where(RevoAttend.timestamp <= f'{tgl.isoformat()} 23:59:59')
+
+    nama_urut = func.coalesce(RevoUser.name, '')
+    if sort == 'name_asc':
+        stmt = stmt.order_by(nama_urut.asc(), RevoAttend.timestamp.desc())
+    elif sort == 'name_desc':
+        stmt = stmt.order_by(nama_urut.desc(), RevoAttend.timestamp.desc())
+    elif sort == 'time_asc':
+        stmt = stmt.order_by(RevoAttend.timestamp.asc(), RevoAttend.id.asc())
+    else:
+        stmt = stmt.order_by(RevoAttend.timestamp.desc(), RevoAttend.id.desc())
+
+    rows = db.execute(stmt.limit(batas)).all()
     return [
         {
+            'id': r.id,
             'user_id': r.user_id,
             'nama': r.nama or '',
             'role': r.role or '',
@@ -182,3 +227,17 @@ def riwayat(
         }
         for r in rows
     ]
+
+
+@router.delete('/riwayat/{baris_id}', status_code=status.HTTP_204_NO_CONTENT)
+def hapus_baris_riwayat(
+    baris_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Hapus satu catatan kehadiran (revo_attend) — pekerja di revo_users tetap ada."""
+    item = db.get(RevoAttend, baris_id)
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, 'Catatan kehadiran tidak ditemukan')
+    db.delete(item)
+    db.commit()

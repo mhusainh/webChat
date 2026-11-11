@@ -140,3 +140,109 @@ class TestRiwayatKedatangan:
 
     def test_riwayat_wajib_login(self):
         assert client.get('/api/revo/riwayat').status_code == 401
+        assert client.delete('/api/revo/riwayat/1').status_code == 401
+
+    def test_hapus_satu_baris_riwayat_menyisakan_pekerja(self):
+        t = token()
+        push_glog('9501', '20260113070000')
+        push_glog('9501', '20260113080000')
+        baris = [r for r in client.get('/api/revo/riwayat', headers=hdr(t)).json() if r['user_id'] == '9501']
+        assert len(baris) == 2
+        assert all(isinstance(r['id'], int) for r in baris)
+
+        # baris terbaru (index 0) dihapus — hanya catatannya
+        assert client.delete(f"/api/revo/riwayat/{baris[0]['id']}", headers=hdr(t)).status_code == 204
+        sisa = [r for r in client.get('/api/revo/riwayat', headers=hdr(t)).json() if r['user_id'] == '9501']
+        assert [r['timestamp'] for r in sisa] == ['2026-01-13 07:00:00']
+
+        # pekerja di revo_users tidak ikut terhapus
+        daftar = client.get('/api/revo/users', headers=hdr(t)).json()
+        assert any(r['user_id'] == '9501' for r in daftar)
+
+        # hapus baris terakhir: riwayat kosong, pekerja tetap ada
+        assert client.delete(f"/api/revo/riwayat/{sisa[0]['id']}", headers=hdr(t)).status_code == 204
+        assert all(r['user_id'] != '9501' for r in client.get('/api/revo/riwayat', headers=hdr(t)).json())
+        daftar = client.get('/api/revo/users', headers=hdr(t)).json()
+        assert any(r['user_id'] == '9501' for r in daftar)
+
+        assert client.delete(f"/api/revo/riwayat/{baris[0]['id']}", headers=hdr(t)).status_code == 404
+
+
+class TestRiwayatFilter:
+    def test_cari_nama_dan_filter_peran(self):
+        t = token()
+        client.post(
+            '/api/revo/users',
+            json={'user_id': '9601', 'name': 'Budi Santoso', 'role': 'Teknisi'},
+            headers=hdr(t),
+        )
+        client.post(
+            '/api/revo/users',
+            json={'user_id': '9602', 'name': 'siti rahayu', 'role': 'Operator'},
+            headers=hdr(t),
+        )
+        push_glog('9601', '20260114070000')
+        push_glog('9602', '20260114070100')
+
+        # search nama: huruf besar-kecil bebas, cocok sebagian
+        budi = client.get('/api/revo/riwayat', params={'search': 'budi'}, headers=hdr(t)).json()
+        assert [r['user_id'] for r in budi] == ['9601']
+        siti = client.get('/api/revo/riwayat', params={'search': 'RAHAYU'}, headers=hdr(t)).json()
+        assert [r['user_id'] for r in siti] == ['9602']
+        kosong = client.get('/api/revo/riwayat', params={'search': 'tak-ada'}, headers=hdr(t)).json()
+        assert kosong == []
+
+        # filter peran (cocok persis) — kedua user di atas sudah berperan
+        op = client.get('/api/revo/riwayat', params={'role': 'Operator'}, headers=hdr(t)).json()
+        assert [r['user_id'] for r in op] == ['9602']
+        # role='' berarti hanya yang tanpa peran
+        assert client.get('/api/revo/riwayat', params={'role': ''}, headers=hdr(t)).json() == []
+
+    def test_filter_rentang_tanggal(self):
+        t = token()
+        push_glog('9701', '20260114070000')
+        push_glog('9701', '20260115070000')
+        push_glog('9701', '20260116070000')
+
+        rentang = client.get(
+            '/api/revo/riwayat',
+            params={'date_from': '2026-01-14', 'date_to': '2026-01-15'},
+            headers=hdr(t),
+        ).json()
+        assert [r['timestamp'] for r in rentang] == ['2026-01-15 07:00:00', '2026-01-14 07:00:00']
+
+        # hanya batas bawah
+        dari = client.get(
+            '/api/revo/riwayat', params={'date_from': '2026-01-16'}, headers=hdr(t)
+        ).json()
+        assert [r['timestamp'] for r in dari] == ['2026-01-16 07:00:00']
+
+        # tanggal tidak valid = 400, bukan 500
+        assert client.get(
+            '/api/revo/riwayat', params={'date_from': '16-01-2026'}, headers=hdr(t)
+        ).status_code == 400
+        assert client.get(
+            '/api/revo/riwayat', params={'date_to': '2026-02-30'}, headers=hdr(t)
+        ).status_code == 400
+
+    def test_urut_nama_dan_tanggal_serta_validasi_sort(self):
+        t = token()
+        client.post(
+            '/api/revo/users', json={'user_id': '9801', 'name': 'Zara', 'role': ''}, headers=hdr(t)
+        )
+        client.post(
+            '/api/revo/users', json={'user_id': '9802', 'name': 'Alpha', 'role': ''}, headers=hdr(t)
+        )
+        push_glog('9801', '20260114070000')
+        push_glog('9802', '20260114070100')
+
+        asc = client.get('/api/revo/riwayat', params={'sort': 'name_asc'}, headers=hdr(t)).json()
+        assert [r['nama'] for r in asc] == ['Alpha', 'Zara']
+        desc = client.get('/api/revo/riwayat', params={'sort': 'name_desc'}, headers=hdr(t)).json()
+        assert [r['nama'] for r in desc] == ['Zara', 'Alpha']
+        waktu = client.get('/api/revo/riwayat', params={'sort': 'time_asc'}, headers=hdr(t)).json()
+        assert [r['timestamp'] for r in waktu] == ['2026-01-14 07:00:00', '2026-01-14 07:01:00']
+
+        assert client.get(
+            '/api/revo/riwayat', params={'sort': 'asal'}, headers=hdr(t)
+        ).status_code == 400

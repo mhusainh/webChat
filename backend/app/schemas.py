@@ -87,6 +87,7 @@ class RevoUserOut(BaseModel):
 
 
 class RevoRiwayatOut(BaseModel):
+    id: int
     user_id: str
     nama: str
     role: str
