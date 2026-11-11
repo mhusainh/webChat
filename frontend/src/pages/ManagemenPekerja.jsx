@@ -23,6 +23,10 @@ const fmtWaktu = (s) => {
 // Nilai <select> untuk saringan "Tanpa peran" (peran asli bisa berupa teks apa pun).
 const PERAN_KOSONG = "__tanpa__";
 
+// Peran hanya dua pilihan. Nilai lama di luar daftar tetap ditampilkan saat edit
+// (opsi kondisional) supaya tidak ada perubahan peran diam-diam.
+const PERAN_OPSI = ["Karyawan", "Staff"];
+
 export default function ManagemenPekerjaPage() {
   const [tab, setTab] = useState("pekerja");
 
@@ -34,13 +38,14 @@ export default function ManagemenPekerjaPage() {
   const [peranP, setPeranP] = useState("");
   const [sortP, setSortP] = useState("asc");
 
-  const [pinBaru, setPinBaru] = useState("");
+  const [uidBaru, setUidBaru] = useState("");
   const [namaBaru, setNamaBaru] = useState("");
-  const [peranBaru, setPeranBaru] = useState("");
+  const [peranBaru, setPeranBaru] = useState("Karyawan");
   const [cBusy, setCBusy] = useState(false);
   const [cMsg, setCMsg] = useState(null);
 
   const [editUid, setEditUid] = useState(null);
+  const [editUidBaru, setEditUidBaru] = useState(""); // isi input User ID saat mode ubah
   const [editNama, setEditNama] = useState("");
   const [editPeran, setEditPeran] = useState("");
   const [savingUid, setSavingUid] = useState(null);
@@ -64,7 +69,6 @@ export default function ManagemenPekerjaPage() {
   const [hapusRwId, setHapusRwId] = useState(null);
 
   const rwSeq = useRef(0); // balasan basi (race) dibuang lewat nomor urut
-  const rwSudahMuat = useRef(false);
 
   const muatPekerja = useCallback(async (opts = {}) => {
     if (!opts.silent) {
@@ -112,26 +116,24 @@ export default function ManagemenPekerjaPage() {
     [cariRw, peranRw, tglAwal, tglAkhir, sortRw],
   );
 
+  // Satu pemicu untuk dua hal:
+  // - klik tab (atau ganti filter riwayat) = muat ulang data tab itu dari server,
+  //   jadi edit di Managemen Pekerja langsung terbaca saat Riwayat Kedatangan dibuka;
+  // - perubahan filter/sort riwayat = ambil ulang dengan saringan baru.
   useEffect(() => {
-    // eslint-disable-next-line react/set-state-in-effect -- muat({silent:true}) tidak men-set apa pun secara sinkron; status loading sudah jadi state awal
-    muatPekerja({ silent: true });
-  }, [muatPekerja]);
-
-  // Tab riwayat baru dibuka: muat sekali (filter awal semua kosong).
-  useEffect(() => {
-    if (tab !== "riwayat" || rwSudahMuat.current) return;
-    rwSudahMuat.current = true;
-    muatRiwayat();
-    // muatRiwayat sengaja tidak ikut deps: identitasnya berganti tiap filter
-    // berubah, dan perubahan filter justru pemicu refetch di efek bawah.
-  }, [tab, muatRiwayat]);
-
-  // Filter/sort riwayat berubah → ambil ulang dari server (bukan saringan klien).
-  useEffect(() => {
-    if (!rwSudahMuat.current) return;
-    muatRiwayat();
+    setEditUid(null);
+    setEditNama("");
+    setEditPeran("");
+    setPendingHapus(null);
+    setPendingHapusRw(null);
+    setRowError("");
+    setErrRw("");
+    if (tab === "riwayat") muatRiwayat();
+    else muatPekerja();
+    // muatPekerja/muatRiwayat sengaja tidak ikut deps: identitas mereka berganti
+    // tiap filter riwayat berubah — justru perubahan itulah pemicu efek ini.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cariRw, peranRw, tglAwal, tglAkhir, sortRw]);
+  }, [tab, cariRw, peranRw, tglAwal, tglAkhir, sortRw]);
 
   useEffect(() => {
     const t = setTimeout(() => setCariRw(cariInput.trim()), 300);
@@ -160,10 +162,10 @@ export default function ManagemenPekerjaPage() {
 
   const tambah = async (e) => {
     e.preventDefault();
-    const pin = pinBaru.trim();
+    const uid = uidBaru.trim();
     const nama = namaBaru.trim();
-    if (!pin || !nama) {
-      setCMsg({ ok: false, text: "PIN dan nama wajib diisi." });
+    if (!uid || !nama) {
+      setCMsg({ ok: false, text: "User ID dan nama wajib diisi." });
       return;
     }
     setCBusy(true);
@@ -171,15 +173,15 @@ export default function ManagemenPekerjaPage() {
     try {
       await api("/revo/users", {
         method: "POST",
-        body: JSON.stringify({ user_id: pin, name: nama, role: peranBaru.trim() }),
+        body: JSON.stringify({ user_id: uid, name: nama, role: peranBaru.trim() }),
       });
-      setPinBaru("");
+      setUidBaru("");
       setNamaBaru("");
-      setPeranBaru("");
+      setPeranBaru("Karyawan");
       setCMsg({ ok: true, text: `${nama} ditambahkan.` });
       await muatPekerja({ silent: true });
     } catch (err) {
-      if (err && err.status === 409) setCMsg({ ok: false, text: `PIN ${pin} sudah terdaftar.` });
+      if (err && err.status === 409) setCMsg({ ok: false, text: `User ID ${uid} sudah terdaftar.` });
       else setCMsg({ ok: false, text: pesanApi(err) });
     } finally {
       setCBusy(false);
@@ -188,20 +190,31 @@ export default function ManagemenPekerjaPage() {
 
   const simpan = async (uid) => {
     const nama = editNama.trim();
+    const uidBaruEdit = editUidBaru.trim();
     if (!nama) return;
+    if (!uidBaruEdit) {
+      setRowError("User ID wajib diisi.");
+      return;
+    }
+    if (!/^[0-9A-Za-z_-]+$/.test(uidBaruEdit)) {
+      setRowError("User ID hanya boleh huruf, angka, strip, atau garis bawah.");
+      return;
+    }
     setSavingUid(uid);
     setRowError("");
     try {
       await api(`/revo/users/${encodeURIComponent(uid)}`, {
         method: "PUT",
-        body: JSON.stringify({ name: nama, role: editPeran.trim() }),
+        body: JSON.stringify({ name: nama, role: editPeran.trim(), user_id: uidBaruEdit }),
       });
       setEditUid(null);
+      setEditUidBaru("");
       setEditNama("");
       setEditPeran("");
       await muatPekerja({ silent: true });
     } catch (err) {
-      setRowError(pesanApi(err));
+      if (err && err.status === 409) setRowError(`User ID ${uidBaruEdit} sudah dipakai pekerja lain.`);
+      else setRowError(pesanApi(err));
     } finally {
       setSavingUid(null);
     }
@@ -249,6 +262,7 @@ export default function ManagemenPekerjaPage() {
 
   const batalEdit = () => {
     setEditUid(null);
+    setEditUidBaru("");
     setEditNama("");
     setEditPeran("");
   };
@@ -262,14 +276,6 @@ export default function ManagemenPekerjaPage() {
     const arah = sortP === "desc" ? -1 : 1;
     return [...list].sort((a, b) => (a.name.localeCompare(b.name) || a.id - b.id) * arah);
   }, [pekerja, cariP, peranP, sortP]);
-
-  const opsiPeran = useMemo(
-    () =>
-      [...new Set(pekerja.map((p) => p.role || ""))]
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b)),
-    [pekerja],
-  );
 
   const total = pekerja.length;
   const tanpaNama = pekerja.filter((p) => p.name === "Belum Diberi Nama").length;
@@ -374,14 +380,11 @@ export default function ManagemenPekerjaPage() {
                   {(adaTanpaPeran || peranP === PERAN_KOSONG) && (
                     <option value={PERAN_KOSONG}>Tanpa peran</option>
                   )}
-                  {opsiPeran.map((r) => (
+                  {PERAN_OPSI.map((r) => (
                     <option key={r} value={r}>
                       {r}
                     </option>
                   ))}
-                  {peranP && peranP !== PERAN_KOSONG && !opsiPeran.includes(peranP) && (
-                    <option value={peranP}>{peranP}</option>
-                  )}
                 </select>
               </div>
               <div className="field f-pilih">
@@ -448,7 +451,7 @@ export default function ManagemenPekerjaPage() {
               <div className="tabel kolom-pekerja">
                 <div className="thead" role="row" aria-hidden="true">
                   <span>No</span>
-                  <span>PIN</span>
+                  <span>User ID</span>
                   <span>Nama</span>
                   <span>Peran</span>
                   <span style={{ textAlign: "right" }}>Aksi</span>
@@ -473,8 +476,20 @@ export default function ManagemenPekerjaPage() {
                       <span className="no" data-label="No">
                         {pad2(i + 1)}
                       </span>
-                      <span className="p" data-label="PIN">
-                        {it.user_id}
+                      <span className="p" data-label="User ID">
+                        {editing ? (
+                          <input
+                            value={editUidBaru}
+                            onChange={(e) => setEditUidBaru(e.target.value)}
+                            onKeyDown={onKeyDownSimpan}
+                            disabled={saving}
+                            maxLength={50}
+                            autoComplete="off"
+                            aria-label="User ID pekerja"
+                          />
+                        ) : (
+                          it.user_id
+                        )}
                       </span>
                       <span className="u" data-label="Nama">
                         {editing ? (
@@ -493,15 +508,22 @@ export default function ManagemenPekerjaPage() {
                       </span>
                       <span data-label="Peran">
                         {editing ? (
-                          <input
+                          <select
                             value={editPeran}
                             onChange={(e) => setEditPeran(e.target.value)}
                             onKeyDown={onKeyDownSimpan}
                             disabled={saving}
-                            maxLength={50}
                             aria-label="Peran pekerja"
-                            placeholder="Tanpa peran"
-                          />
+                          >
+                            {!PERAN_OPSI.includes(editPeran) && (
+                              <option value={editPeran}>{editPeran || "Tanpa peran"}</option>
+                            )}
+                            {PERAN_OPSI.map((r) => (
+                              <option key={r} value={r}>
+                                {r}
+                              </option>
+                            ))}
+                          </select>
                         ) : (
                           it.role || "Tanpa peran"
                         )}
@@ -552,6 +574,7 @@ export default function ManagemenPekerjaPage() {
                               className="btn btn-sm"
                               onClick={() => {
                                 setEditUid(it.user_id);
+                                setEditUidBaru(it.user_id);
                                 setEditNama(it.name);
                                 setEditPeran(it.role);
                               }}
@@ -602,14 +625,11 @@ export default function ManagemenPekerjaPage() {
                   {(adaTanpaPeran || peranRw === PERAN_KOSONG) && (
                     <option value={PERAN_KOSONG}>Tanpa peran</option>
                   )}
-                  {opsiPeran.map((r) => (
+                  {PERAN_OPSI.map((r) => (
                     <option key={r} value={r}>
                       {r}
                     </option>
                   ))}
-                  {peranRw && peranRw !== PERAN_KOSONG && !opsiPeran.includes(peranRw) && (
-                    <option value={peranRw}>{peranRw}</option>
-                  )}
                 </select>
               </div>
               <div className="field f-tgl">
@@ -706,7 +726,7 @@ export default function ManagemenPekerjaPage() {
               <div className="tabel kolom-riwayat">
                 <div className="thead" role="row" aria-hidden="true">
                   <span>No</span>
-                  <span>PIN</span>
+                  <span>User ID</span>
                   <span>Nama</span>
                   <span>Peran</span>
                   <span style={{ textAlign: "right" }}>Waktu</span>
@@ -726,7 +746,7 @@ export default function ManagemenPekerjaPage() {
                       <span className="no" data-label="No">
                         {pad2(i + 1)}
                       </span>
-                      <span className="p" data-label="PIN">
+                      <span className="p" data-label="User ID">
                         {r.user_id}
                       </span>
                       <span className="u" data-label="Nama">
@@ -782,15 +802,14 @@ export default function ManagemenPekerjaPage() {
           <form className="sheetlet" onSubmit={tambah}>
             <h2>Tambah Pekerja</h2>
             <div className="field">
-              <label htmlFor="pin-baru">PIN di mesin</label>
+              <label htmlFor="uid-baru">User ID</label>
               <input
-                id="pin-baru"
-                value={pinBaru}
-                onChange={(e) => setPinBaru(e.target.value)}
+                id="uid-baru"
+                value={uidBaru}
+                onChange={(e) => setUidBaru(e.target.value)}
                 disabled={cBusy}
                 maxLength={50}
                 autoComplete="off"
-                inputMode="numeric"
               />
               <p className="jenis-code">ANGKA ATAU HURUF, TANPA SPASI</p>
             </div>
@@ -806,16 +825,19 @@ export default function ManagemenPekerjaPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="peran-baru">Peran (boleh dikosongi)</label>
-              <input
+              <label htmlFor="peran-baru">Peran</label>
+              <select
                 id="peran-baru"
                 value={peranBaru}
                 onChange={(e) => setPeranBaru(e.target.value)}
                 disabled={cBusy}
-                maxLength={50}
-                placeholder="mis. Teknisi"
-                autoComplete="off"
-              />
+              >
+                {PERAN_OPSI.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
             </div>
             <button type="submit" className="btn btn-prim" disabled={cBusy}>
               {cBusy ? "Menambahkan…" : "Tambah"}
@@ -831,8 +853,12 @@ export default function ManagemenPekerjaPage() {
           <div className="sheetlet">
             <h2>Cara Pakai</h2>
             <p style={{ marginBottom: 12 }}>
-              PIN yang belum terdaftar tetap diterima saat scan: nama pekerja otomatis terisi{" "}
+              User ID yang belum terdaftar tetap diterima saat scan: nama pekerja otomatis terisi{" "}
               <b>Belum Diberi Nama</b>, lalu tinggal diganti lewat tombol Ubah.
+            </p>
+            <p style={{ marginBottom: 12 }}>
+              <b>Mengubah User ID ikut memindahkan seluruh riwayat absensinya</b> ke ID baru, jadi
+              riwayat tidak terputus hanya karena ID diganti.
             </p>
             <p style={{ marginBottom: 12 }}>
               <b>Menghapus pekerja ikut menghapus seluruh riwayat absensinya</b>, jadi hapus hanya
@@ -846,6 +872,8 @@ export default function ManagemenPekerjaPage() {
               <br />
               UBAH → EDIT LANGSUNG DI TABEL
               <br />
+              GANTI USER ID → RIWAYAT IKUT PINDAH
+              <br />
               SCAN BARU → NAMA DEFAULT BELUM DIBERI NAMA
             </p>
           </div>
@@ -858,7 +886,7 @@ export default function ManagemenPekerjaPage() {
             <h2>Tentang Riwayat</h2>
             <p style={{ marginBottom: 12 }}>
               Setiap baris adalah satu scan dari mesin Revo. <b>Nama</b> dan <b>peran</b> diambil
-              dari daftar pekerja lewat PIN yang sama.
+              dari daftar pekerja lewat User ID yang sama.
             </p>
             <p style={{ marginBottom: 12 }}>
               Cari nama, saring peran, dan batasi rentang tanggal sekaligus; hasil langsung

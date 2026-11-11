@@ -400,10 +400,10 @@ h1 {
   gap: 10px;
 }
 
-/* Lembar 05: Managemen Pekerja — kolom PIN + aksi (konfirmasi butuh ruang ganda) */
+/* Lembar 05: Managemen Pekerja — kolom User ID + aksi (konfirmasi butuh ruang ganda) */
 .tabel.kolom-pekerja .thead,
 .tabel.kolom-pekerja .trow {
-  grid-template-columns: 54px 120px 1fr 170px 176px;
+  grid-template-columns: 54px 140px 1fr 170px 176px;
 }
 
 .tabel.kolom-pekerja .trow .ak {
@@ -481,7 +481,8 @@ h1 {
   justify-content: flex-end;
 }
 
-.trow input {
+.trow input,
+.trow select {
   width: 100%;
   min-height: 44px;
   padding: 8px 10px;
@@ -492,7 +493,8 @@ h1 {
   font-size: 17px;
 }
 
-.trow input:focus {
+.trow input:focus,
+.trow select:focus {
   border-color: var(--ink);
 }
 

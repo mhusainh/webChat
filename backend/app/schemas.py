@@ -75,6 +75,8 @@ class RevoUserCreate(BaseModel):
 class RevoUserUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     role: str = Field(default='', max_length=50)
+    # Kopsi User ID: kosong/tidak dikirim = tidak ganti nama baris.
+    user_id: str | None = Field(default=None, pattern=r'^[0-9A-Za-z_-]+$', max_length=50)
 
 
 class RevoUserOut(BaseModel):

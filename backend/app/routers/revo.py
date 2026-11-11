@@ -13,7 +13,7 @@ from datetime import date as tanggal_hari
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -115,7 +115,7 @@ def buat_user(
 ):
     exists = db.scalar(select(RevoUser).where(RevoUser.user_id == data.user_id))
     if exists is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, 'PIN sudah terdaftar')
+        raise HTTPException(status.HTTP_409_CONFLICT, 'User ID sudah terdaftar')
     item = RevoUser(user_id=data.user_id, name=data.name, role=data.role)
     db.add(item)
     db.commit()
@@ -133,6 +133,17 @@ def ubah_user(
     item = db.scalar(select(RevoUser).where(RevoUser.user_id == uid))
     if item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, 'Pekerja tidak ditemukan')
+    uid_baru = (data.user_id or '').strip()
+    if uid_baru and uid_baru != uid:
+        bentrok = db.scalar(select(RevoUser.id).where(RevoUser.user_id == uid_baru))
+        if bentrok is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, 'User ID sudah dipakai pekerja lain')
+        # Kunci orang tua dulu, lalu anak: di Postgres ON UPDATE CASCADE sudah
+        # menarik revo_attend ikut, jadi update anak kedua cuma menyapu 0 baris;
+        # di SQLite (PRAGMA foreign_keys mati) update anak inilah yang bekerja.
+        item.user_id = uid_baru
+        db.flush()
+        db.execute(update(RevoAttend).where(RevoAttend.user_id == uid).values(user_id=uid_baru))
     item.name = data.name
     item.role = data.role
     db.commit()

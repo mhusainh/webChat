@@ -96,6 +96,50 @@ class TestCRUDRevoUsers:
         assert all(r['user_id'] != '9101' for r in daftar)
         assert client.delete('/api/revo/users/9101', headers=hdr(t)).status_code == 404
 
+    def test_ubah_user_id_memindahkan_riwayat(self):
+        t = token()
+        push_glog('9901', '20260117070000')
+
+        ubah = client.put(
+            '/api/revo/users/9901',
+            json={'name': 'Uji Ganti', 'role': 'Karyawan', 'user_id': '9902'},
+            headers=hdr(t),
+        )
+        assert ubah.status_code == 200
+        assert ubah.json()['user_id'] == '9902'
+
+        # riwayat ikut berpindah ke User ID baru, join nama tetap utuh
+        rows = [
+            r
+            for r in client.get('/api/revo/riwayat', headers=hdr(t)).json()
+            if r['nama'] == 'Uji Ganti'
+        ]
+        assert [r['user_id'] for r in rows] == ['9902']
+        daftar = client.get('/api/revo/users', headers=hdr(t)).json()
+        assert all(r['user_id'] != '9901' for r in daftar)
+
+        # bentrok dengan User ID pekerja lain = 409
+        push_glog('9903', '20260117070100')
+        assert client.put(
+            '/api/revo/users/9903',
+            json={'name': 'X', 'role': '', 'user_id': '9902'},
+            headers=hdr(t),
+        ).status_code == 409
+
+        # format tidak valid = 422, bukan 500
+        assert client.put(
+            '/api/revo/users/9902',
+            json={'name': 'X', 'role': '', 'user_id': 'spasi tidak'},
+            headers=hdr(t),
+        ).status_code == 422
+
+        # tanpa field user_id: ganti nama/peran saja, id tetap
+        ubah2 = client.put(
+            '/api/revo/users/9902', json={'name': 'Tetap', 'role': 'Staff'}, headers=hdr(t)
+        )
+        assert ubah2.status_code == 200
+        assert ubah2.json()['user_id'] == '9902'
+
 
 class TestRiwayatKedatangan:
     def test_scan_otomatis_buat_user_lalu_join_nama(self):
