@@ -40,7 +40,7 @@ export default function LogAbsensiPage() {
         <span className="ch br" aria-hidden="true" />
         <div className="head">
           <div>
-            <span className="sec-label">Seksi 04 · Lembar 04/04</span>
+            <span className="sec-label">Seksi 04 · Lembar 04/05</span>
             <h1>Log Absensi</h1>
           </div>
           <button type="button" className="btn" onClick={muat} disabled={status === "loading"}>

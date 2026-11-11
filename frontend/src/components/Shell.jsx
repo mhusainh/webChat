@@ -59,6 +59,13 @@ export default function Shell({ sheet, children }) {
             <span className="n">04</span>
             <span className="t">Log Absensi</span>
           </NavLink>
+          <NavLink
+            to="/managemen-pekerja"
+            className={({ isActive }) => "tab" + (isActive ? " on" : "")}
+          >
+            <span className="n">05</span>
+            <span className="t">Managemen Pekerja</span>
+          </NavLink>
           <div className="railmeta">
             <span className="k">Catatan lembar</span>
             <div className="row">
@@ -71,7 +78,7 @@ export default function Shell({ sheet, children }) {
             </div>
             <div className="row">
               <span>REV UI</span>
-              <span>02</span>
+              <span>03</span>
             </div>
           </div>
         </nav>

@@ -114,7 +114,7 @@ export default function KaryawanKhususPage() {
         <span className="ch br" aria-hidden="true" />
         <div className="head">
           <div>
-            <span className="sec-label">Seksi 03 · Lembar 03/04</span>
+            <span className="sec-label">Seksi 03 · Lembar 03/05</span>
             <h1>Karyawan Khusus</h1>
           </div>
         </div>

@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Trigger from "./pages/Trigger";
 import KaryawanKhususPage from "./pages/KaryawanKhusus";
 import LogAbsensiPage from "./pages/LogAbsensi";
+import ManagemenPekerjaPage from "./pages/ManagemenPekerja";
 
 function LoginRoute() {
   const { user } = useAuth();
@@ -26,7 +27,7 @@ export default function App() {
       <Route
         path="/"
         element={
-          <RequireAuth sheet="01/04 DASBOR">
+          <RequireAuth sheet="01/05 DASBOR">
             <Dashboard />
           </RequireAuth>
         }
@@ -34,7 +35,7 @@ export default function App() {
       <Route
         path="/trigger"
         element={
-          <RequireAuth sheet="02/04 TRIGGER">
+          <RequireAuth sheet="02/05 TRIGGER">
             <Trigger />
           </RequireAuth>
         }
@@ -42,7 +43,7 @@ export default function App() {
       <Route
         path="/karyawan-khusus"
         element={
-          <RequireAuth sheet="03/04 KARYAWAN KHUSUS">
+          <RequireAuth sheet="03/05 KARYAWAN KHUSUS">
             <KaryawanKhususPage />
           </RequireAuth>
         }
@@ -50,8 +51,16 @@ export default function App() {
       <Route
         path="/log-absensi"
         element={
-          <RequireAuth sheet="04/04 LOG ABSENSI">
+          <RequireAuth sheet="04/05 LOG ABSENSI">
             <LogAbsensiPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/managemen-pekerja"
+        element={
+          <RequireAuth sheet="05/05 MANAGEMEN PEKERJA">
+            <ManagemenPekerjaPage />
           </RequireAuth>
         }
       />

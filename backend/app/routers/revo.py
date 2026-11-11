@@ -1,16 +1,23 @@
-"""Endpoint Revo — tanpa JWT dan NOL database.
+"""Endpoint Revo.
 
-- POST /api/revo/push : cermin dari listener 8014, untuk uji/curl tanpa perangkat.
+- POST /api/revo/push   : cermin dari listener 8014, untuk uji/curl tanpa perangkat.
 - GET  /api/revo/attlog : kontrak JSON yang dibaca getRevo.py (dipanggil n8n).
-- PUT  /api/revo/users : perbaiki nama karyawan di RAM.
+- PUT  /api/revo/users  : perbaiki nama karyawan (lama, tanpa JWT).
+- CRUD /api/revo/users + GET /api/revo/riwayat : kelola revo_users & riwayat
+  gabungan revo_attend x revo_users (wajib JWT).
 """
 
 from datetime import date as tanggal_hari
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.database import get_db
+from app.deps import get_current_user
+from app.models import RevoAttend, RevoUser, User
 from app.revo_fksdk import (
     RevoError,
     ambil_attlog,
@@ -19,7 +26,13 @@ from app.revo_fksdk import (
     process_push,
     set_user_nama,
 )
-from app.schemas import RevoUserSet
+from app.schemas import (
+    RevoRiwayatOut,
+    RevoUserCreate,
+    RevoUserOut,
+    RevoUserSet,
+    RevoUserUpdate,
+)
 
 router = APIRouter(prefix='/revo', tags=['revo'])
 
@@ -72,3 +85,100 @@ def set_nama(payload: RevoUserSet, request: Request) -> JSONResponse:
         return ditolak
     set_user_nama(payload.user_id, payload.nama)
     return JSONResponse({'ok': True, 'message': f"User {payload.user_id} disimpan dengan nama '{payload.nama}'"})
+
+
+@router.get('/users', response_model=list[RevoUserOut])
+def daftar_user(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    return db.scalars(select(RevoUser).order_by(RevoUser.id)).all()
+
+
+@router.post('/users', response_model=RevoUserOut, status_code=status.HTTP_201_CREATED)
+def buat_user(
+    data: RevoUserCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    exists = db.scalar(select(RevoUser).where(RevoUser.user_id == data.user_id))
+    if exists is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, 'PIN sudah terdaftar')
+    item = RevoUser(user_id=data.user_id, name=data.name, role=data.role)
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.put('/users/{uid}', response_model=RevoUserOut)
+def ubah_user(
+    uid: str,
+    data: RevoUserUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    item = db.scalar(select(RevoUser).where(RevoUser.user_id == uid))
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, 'Pekerja tidak ditemukan')
+    item.name = data.name
+    item.role = data.role
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.delete('/users/{uid}', status_code=status.HTTP_204_NO_CONTENT)
+def hapus_user(
+    uid: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    item = db.scalar(select(RevoUser).where(RevoUser.user_id == uid))
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, 'Pekerja tidak ditemukan')
+    # SQLite (test) tidak menyalakan PRAGMA foreign_keys, jadi riwayat dihapus
+    # eksplisit; di Postgres, ON DELETE CASCADE tetap jadi jaring pengaman.
+    db.execute(delete(RevoAttend).where(RevoAttend.user_id == uid))
+    db.delete(item)
+    db.commit()
+
+
+@router.get('/riwayat', response_model=list[RevoRiwayatOut])
+def riwayat(
+    target_date: str | None = None,
+    limit: int = 500,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Riwayat kehadiran terbaru: revo_attend LEFT JOIN revo_users per user_id."""
+    batas = max(1, min(limit, 2000))
+    stmt = (
+        select(
+            RevoAttend.user_id,
+            RevoUser.name.label('nama'),
+            RevoUser.role,
+            RevoAttend.timestamp,
+        )
+        .outerjoin(RevoUser, RevoUser.user_id == RevoAttend.user_id)
+        .order_by(RevoAttend.timestamp.desc())
+        .limit(batas)
+    )
+    if target_date:
+        try:
+            tgl = parse_target_date(target_date)
+        except RevoError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)[:300]) from exc
+        awal = f'{tgl.isoformat()} 00:00:00'
+        akhir = f'{tgl.isoformat()} 23:59:59'
+        stmt = stmt.where(RevoAttend.timestamp >= awal, RevoAttend.timestamp <= akhir)
+    rows = db.execute(stmt).all()
+    return [
+        {
+            'user_id': r.user_id,
+            'nama': r.nama or '',
+            'role': r.role or '',
+            'timestamp': r.timestamp,
+        }
+        for r in rows
+    ]

@@ -137,7 +137,7 @@ export default function Dashboard() {
         <span className="ch br" aria-hidden="true" />
         <div className="head">
           <div>
-            <span className="sec-label">Seksi 01 · Lembar 01/04</span>
+            <span className="sec-label">Seksi 01 · Lembar 01/05</span>
             <h1>Manajemen Akun</h1>
           </div>
           <Link className="btn btn-prim" to="/trigger">

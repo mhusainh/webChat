@@ -113,7 +113,7 @@ export default function Trigger() {
         <span className="ch br" aria-hidden="true" />
         <div className="head">
           <div>
-            <span className="sec-label">Seksi 02 · Lembar 02/04</span>
+            <span className="sec-label">Seksi 02 · Lembar 02/05</span>
             <h1>Kirim Trigger</h1>
           </div>
         </div>

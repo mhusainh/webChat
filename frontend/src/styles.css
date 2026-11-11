@@ -400,6 +400,30 @@ h1 {
   gap: 10px;
 }
 
+/* Lembar 05: Managemen Pekerja — kolom PIN + aksi (konfirmasi butuh ruang ganda) */
+.tabel.kolom-pekerja .thead,
+.tabel.kolom-pekerja .trow {
+  grid-template-columns: 54px 120px 1fr 170px 176px;
+}
+
+.tabel.kolom-pekerja .trow .ak {
+  flex-wrap: wrap;
+}
+
+/* Lembar 05: Riwayat Kedatangan — kolom Peran + Waktu */
+.tabel.kolom-riwayat .thead,
+.tabel.kolom-riwayat .trow {
+  grid-template-columns: 54px 120px 1fr 160px 200px;
+}
+
+.trow .waktu {
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: right;
+  white-space: nowrap;
+}
+
 .thead {
   padding: 12px 8px;
   border-bottom: 1px solid var(--ink);
@@ -798,6 +822,14 @@ h1 {
   background: #eae1cd;
 }
 
+/* Tab label panjang di Lembar 05 */
+.seg.seg-tab button {
+  font-size: 16px;
+  letter-spacing: 0.05em;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+
 .jenis-code {
   margin-top: 10px;
   font-family: "IBM Plex Mono", Consolas, monospace;
@@ -942,6 +974,14 @@ h1 {
     margin-right: auto;
   }
 
+  .trow .waktu {
+    justify-content: flex-end;
+  }
+
+  .trow .waktu::before {
+    margin-right: auto;
+  }
+
   .head .btn {
     width: 100%;
   }
@@ -968,6 +1008,12 @@ h1 {
   .seg button {
     flex: 1;
     padding: 12px 10px;
+  }
+
+  .seg.seg-tab button {
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    padding: 12px 6px;
   }
 }
 

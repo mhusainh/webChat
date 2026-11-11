@@ -66,6 +66,33 @@ class RevoUserSet(BaseModel):
     nama: str = Field(min_length=1, max_length=100)
 
 
+class RevoUserCreate(BaseModel):
+    user_id: str = Field(min_length=1, max_length=50, pattern=r'^[0-9A-Za-z_-]+$')
+    name: str = Field(min_length=1, max_length=100)
+    role: str = Field(default='', max_length=50)
+
+
+class RevoUserUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    role: str = Field(default='', max_length=50)
+
+
+class RevoUserOut(BaseModel):
+    id: int
+    user_id: str
+    name: str
+    role: str
+
+    model_config = {'from_attributes': True}
+
+
+class RevoRiwayatOut(BaseModel):
+    user_id: str
+    nama: str
+    role: str
+    timestamp: str
+
+
 class ResponseIn(BaseModel):
     """Payload yang dikirim n8n per langkah kerja."""
 
