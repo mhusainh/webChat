@@ -16,6 +16,8 @@ services:
       - n8n_default
     ports:
       - "456:8000"
+      # FKSDK — mesin Fingerspot Revo menaruh absensi realtime ke sini.
+      - "8014:8014"
 
   frontend:
     build: ./frontend

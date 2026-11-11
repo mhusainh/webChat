@@ -61,6 +61,11 @@ class KaryawanKhususOut(BaseModel):
     model_config = {'from_attributes': True}
 
 
+class RevoUserSet(BaseModel):
+    user_id: str = Field(min_length=1, max_length=50)
+    nama: str = Field(min_length=1, max_length=100)
+
+
 class ResponseIn(BaseModel):
     """Payload yang dikirim n8n per langkah kerja."""
 

@@ -3,10 +3,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
+from app import fksdk_server
 from app.config import settings
 from app.database import Base, SessionLocal, engine
 from app.models import User
-from app.routers import auth, karyawan_khusus, responses, trigger, users
+from app.routers import auth, karyawan_khusus, responses, revo, trigger, users
 from app.security import decode_access_token, hash_password
 from app.ws import manager
 
@@ -30,7 +31,10 @@ def seed_users() -> None:
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
     seed_users()
+    if settings.revo_fksdk_enabled:
+        fksdk_server.mulai(settings.revo_fksdk_port)
     yield
+    fksdk_server.berhenti()
 
 
 app = FastAPI(title='User Manager', version='1.1.0', lifespan=lifespan)
@@ -40,6 +44,7 @@ app.include_router(users.router, prefix='/api')
 app.include_router(karyawan_khusus.router, prefix='/api')
 app.include_router(trigger.router, prefix='/api')
 app.include_router(responses.router, prefix='/api')
+app.include_router(revo.router, prefix='/api')
 
 
 @app.websocket('/ws')

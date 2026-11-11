@@ -13,5 +13,11 @@ class Settings(BaseSettings):
     seed_password: str = 'admin123'
     n8n_webhook_url: str = ''
 
+    # FKSDK HTTP — mesin Fingerspot Revo menaruh absensi realtime ke sini.
+    revo_fksdk_port: int = 8014
+    revo_fksdk_enabled: bool = True
+    # Kosongkan = endpoint baca tanpa kunci (dev). Isi = wajib header X-API-Key.
+    revo_api_key: str = ''
+
 
 settings = Settings()

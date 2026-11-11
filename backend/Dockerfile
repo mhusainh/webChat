@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
-EXPOSE 8000
+EXPOSE 8000 8014
 
 # Tanpa reload, dengarkan 0.0.0.0 supaya bisa diakses dari luar container.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
